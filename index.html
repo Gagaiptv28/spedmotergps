@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GPS Speedometer Pro - Created by Gaga</title>
+    <style>
+        /* CSS RESET & VARIABLES */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #151c2c;
+            --card-border: #242f47;
+            --primary: #00f2fe;
+            --secondary: #4facfe;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow-x: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        body.overspeed-alert {
+            animation: flash-red 0.8s infinite alternate;
+        }
+
+        @keyframes flash-red {
+            0% { background-color: var(--bg-color); }
+            100% { background-color: #450a0a; }
+        }
+
+        .hud-mode {
+            transform: scaleX(-1);
+        }
+
+        /* HEADER */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(21, 28, 44, 0.6);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .clock-box {
+            font-family: monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* MAIN CONTAINER */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* GAUGE & DIGITAL CONTAINER */
+        .gauge-section {
+            position: relative;
+            width: 100%;
+            max-width: 320px;
+            height: 320px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .digital-readout {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            top: 55%;
+            transform: translateY(-50%);
+        }
+
+        .speed-val {
+            font-size: 4.5rem;
+            font-weight: 900;
+            line-height: 1;
+            font-family: monospace;
+            text-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+        }
+
+        .unit-val {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        /* CONTROLS BAR */
+        .controls-bar {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            background: var(--card-bg);
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn:active {
+            transform: scale(0.96);
+        }
+
+        .btn-active {
+            background: linear-gradient(45deg, #00c6ff, #0072ff);
+            border-color: transparent;
+            box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);
+        }
+
+        /* METRICS GRID */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .card-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .card-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            font-family: monospace;
+        }
+
+        /* SETTINGS / LIMIT BAR */
+        .limit-card {
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .limit-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .limit-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            background: #1e293b;
+            color: #fff;
+            font-weight: bold;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        /* STATUS DISPLAY */
+        .status-box {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        /* FOOTER BRANDING */
+        footer {
+            text-align: center;
+            padding: 15px;
+            border-top: 1px solid var(--card-border);
+            background: rgba(21, 28, 44, 0.4);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .author-tag {
+            color: var(--primary);
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <header id="mainHeader">
+        <div class="logo">SPEEDOMETER PRO</div>
+        <div class="clock-box" id="clockDisplay">00:00:00</div>
+    </header>
+
+    <main id="mainContainer">
+        <!-- Gauge Canvas & Digital Speed -->
+        <div class="gauge-section">
+            <canvas id="gaugeCanvas" width="320" height="320"></canvas>
+            <div class="digital-readout">
+                <div class="speed-val" id="speedDisplay">0</div>
+                <div class="unit-val" id="unitDisplay">კმ/სთ</div>
+            </div>
+        </div>
+
+        <!-- Controls (Start, Units, HUD) -->
+        <div class="controls-bar">
+            <button class="btn btn-active" id="startBtn" onclick="toggleGPS()">
+                <span id="startBtnText">GPS ჩართვა</span>
+            </button>
+            <button class="btn" onclick="toggleUnit()">
+                <span id="unitBtnText">კმ/სთ</span>
+            </button>
+            <button class="btn" id="hudBtn" onclick="toggleHUD()">
+                HUD რეჟიმი
+            </button>
+        </div>
+
+        <!-- Speed Limit Alert Setting -->
+        <div class="limit-card">
+            <div class="card-label">სიჩქარის შეზღუდვა:</div>
+            <div class="limit-controls">
+                <button class="limit-btn" onclick="changeLimit(-5)">-</button>
+                <span id="limitDisplay" style="font-weight:bold; font-family:monospace; font-size:1.1rem;">90</span>
+                <span style="font-size:0.8rem; color:var(--text-muted);">კმ/სთ</span>
+                <button class="limit-btn" onclick="changeLimit(5)">+</button>
+            </div>
+        </div>
+
+        <!-- Analytics Grid -->
+        <div class="metrics-grid">
+            <div class="card">
+                <span class="card-label">მაქს. სიჩქარე</span>
+                <span class="card-value" id="maxSpeedDisplay">0</span>
+            </div>
+            <div class="card">
+                <span class="card-label">საშუალო სიჩქარე</span>
+                <span class="card-value" id="avgSpeedDisplay">0</span>
+            </div>
+            <div class="card">
+                <span class="card-label">გვლილი მანძილი</span>
+                <span class="card-value" id="distanceDisplay">0.00 <small style="font-size:0.7rem">კმ</small></span>
+            </div>
+            <div class="card">
+                <span class="card-label">მგზავრობის დრო</span>
+                <span class="card-value" id="tripTimeDisplay">00:00</span>
+            </div>
+        </div>
+
+        <!-- GPS Status Message -->
+        <div class="status-box" id="statusText">GPS გამორთულია. დააჭირეთ ჩართვას.</div>
+    </main>
+
+    <!-- Footer Branding -->
+    <footer id="mainFooter">
+        ⚡ შექმნილია <span class="author-tag">გაგას</span> მიერ | GPS Speedometer Pro 2026
+    </footer>
+
+    <script>
+        // GLOBAL STATE
+        let isTracking = false;
+        let watchId = null;
+        let currentUnit = 'kmh'; // kmh, mph, knots
+        let speedLimit = 90; // km/h
+        let currentSpeedKmh = 0;
+        let maxSpeedKmh = 0;
+        let totalDistanceMeters = 0;
+        let prevCoords = null;
+
+        // Trip Timer
+        let tripStartTime = null;
+        let tripTimerInterval = null;
+        let totalSpeedSum = 0;
+        let speedReadingsCount = 0;
+
+        // Audio Context for Beep Alert
+        let audioCtx = null;
+
+        // Canvas Setup
+        const canvas = document.getElementById('gaugeCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // INITIALIZATION
+        window.onload = () => {
+            updateClock();
+            setInterval(updateClock, 1000);
+            drawGauge(0);
+        };
+
+        // REAL-TIME CLOCK
+        function updateClock() {
+            const now = new Date();
+            const hrs = String(now.getHours()).padStart(2, '0');
+            const mins = String(now.getMinutes()).padStart(2, '0');
+            const secs = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clockDisplay').innerText = `${hrs}:${mins}:${secs}`;
+        }
+
+        // TOGGLE GPS TRACKING
+        function toggleGPS() {
+            if (!isTracking) {
+                startTracking();
+            } else {
+                stopTracking();
+            }
+        }
+
+        function startTracking() {
+            if (!navigator.geolocation) {
+                alert('თქვენს მოწყობილობას არ აქვს GPS მხარდაჭერა!');
+                return;
+            }
+
+            // Prevent Screen Sleep (Wake Lock)
+            requestWakeLock();
+
+            // Reset Trip Stats
+            maxSpeedKmh = 0;
+            totalDistanceMeters = 0;
+            totalSpeedSum = 0;
+            speedReadingsCount = 0;
+            prevCoords = null;
+            tripStartTime = new Date();
+
+            clearInterval(tripTimerInterval);
+            tripTimerInterval = setInterval(updateTripTimer, 1000);
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+
+            watchId = navigator.geolocation.watchPosition(handleGPSPosition, handleGPSError, options);
+            
+            isTracking = true;
+            document.getElementById('startBtnText').innerText = "GPS გაჩერება";
+            document.getElementById('startBtn').style.background = "#ef4444";
+            document.getElementById('statusText').innerText = "GPS სიგნალის მიღება...";
+            document.getElementById('statusText').style.color = "#10b981";
+        }
+
+        function stopTracking() {
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            clearInterval(tripTimerInterval);
+            
+            isTracking = false;
+            currentSpeedKmh = 0;
+            updateUI();
+            drawGauge(0);
+
+            document.getElementById('startBtnText').innerText = "GPS ჩართვა";
+            document.getElementById('startBtn').style.background = "";
+            document.getElementById('startBtn').classList.add('btn-active');
+            document.getElementById('statusText').innerText = "GPS გამორთულია";
+            document.getElementById('statusText').style.color = "#94a3b8";
+            document.body.classList.remove('overspeed-alert');
+        }
+
+        // HANDLE POSITION UPDATE
+        function handleGPSPosition(pos) {
+            const coords = pos.coords;
+            document.getElementById('statusText').innerText = `GPS აქტიურია (ცდომილება: ±${Math.round(coords.accuracy)}მ)`;
+
+            // Convert Speed to km/h
+            let rawSpeed = coords.speed; // meters per second
+            if (rawSpeed !== null && !isNaN(rawSpeed) && rawSpeed > 0) {
+                currentSpeedKmh = rawSpeed * 3.6;
+            } else {
+                currentSpeedKmh = 0;
+            }
+
+            // Filter out small GPS noise (drift)
+            if (currentSpeedKmh < 1.5) currentSpeedKmh = 0;
+
+            // Track Max Speed
+            if (currentSpeedKmh > maxSpeedKmh) {
+                maxSpeedKmh = currentSpeedKmh;
+            }
+
+            // Calculate Average Speed
+            if (currentSpeedKmh > 0) {
+                totalSpeedSum += currentSpeedKmh;
+                speedReadingsCount++;
+            }
+
+            // Calculate Distance (Haversine Formula)
+            if (prevCoords && currentSpeedKmh > 0) {
+                const dist = calculateDistance(
+                    prevCoords.latitude, prevCoords.longitude,
+                    coords.latitude, coords.longitude
+                );
+                // Filter ridiculous jumps
+                if (dist < 500) { 
+                    totalDistanceMeters += dist;
+                }
+            }
+            prevCoords = coords;
+
+            // Check Overspeed Limit
+            checkSpeedLimit();
+
+            // Update UI & Canvas
+            updateUI();
+            drawGauge(convertSpeed(currentSpeedKmh, currentUnit));
+        }
+
+        function handleGPSError(err) {
+            document.getElementById('statusText').innerText = "GPS შეცდომა: " + err.message;
+            document.getElementById('statusText').style.color = "#ef4444";
+        }
+
+        // UNIT CONVERSION UTILS
+        function convertSpeed(kmhVal, unit) {
+            if (unit === 'mph') return kmhVal * 0.621371;
+            if (unit === 'knots') return kmhVal * 0.539957;
+            return kmhVal;
+        }
+
+        function toggleUnit() {
+            if (currentUnit === 'kmh') currentUnit = 'mph';
+            else if (currentUnit === 'mph') currentUnit = 'knots';
+            else currentUnit = 'kmh';
+
+            const labels = { kmh: 'კმ/სთ', mph: 'მილი/სთ', knots: 'კვანძი' };
+            document.getElementById('unitBtnText').innerText = labels[currentUnit];
+            document.getElementById('unitDisplay').innerText = labels[currentUnit];
+
+            updateUI();
+            drawGauge(convertSpeed(currentSpeedKmh, currentUnit));
+        }
+
+        // OVERSPEED LIMIT & AUDIO ALERT
+        function changeLimit(delta) {
+            speedLimit = Math.max(10, speedLimit + delta);
+            document.getElementById('limitDisplay').innerText = speedLimit;
+            checkSpeedLimit();
+        }
+
+        function checkSpeedLimit() {
+            if (currentSpeedKmh > speedLimit && isTracking) {
+                document.body.classList.add('overspeed-alert');
+                triggerAudioBeep();
+            } else {
+                document.body.classList.remove('overspeed-alert');
+            }
+        }
+
+        function triggerAudioBeep() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+            } catch (e) {}
+        }
+
+        // UPDATE STATS DISPLAY
+        function updateUI() {
+            const displaySpeed = Math.round(convertSpeed(currentSpeedKmh, currentUnit));
+            const displayMax = Math.round(convertSpeed(maxSpeedKmh, currentUnit));
+            
+            let avgKmh = speedReadingsCount > 0 ? (totalSpeedSum / speedReadingsCount) : 0;
+            const displayAvg = Math.round(convertSpeed(avgKmh, currentUnit));
+
+            document.getElementById('speedDisplay').innerText = displaySpeed;
+            document.getElementById('maxSpeedDisplay').innerText = displayMax;
+            document.getElementById('avgSpeedDisplay').innerText = displayAvg;
+
+            // Distance in Km or Miles
+            let distFormatted = (totalDistanceMeters / 1000).toFixed(2);
+            let distUnit = 'კმ';
+            if (currentUnit === 'mph') {
+                distFormatted = (totalDistanceMeters * 0.000621371).toFixed(2);
+                distUnit = 'მილი';
+            }
+            document.getElementById('distanceDisplay').innerHTML = `${distFormatted} <small style="font-size:0.7rem">${distUnit}</small>`;
+        }
+
+        // TRIP TIMER
+        function updateTripTimer() {
+            if (!tripStartTime) return;
+            const diffSecs = Math.floor((new Date() - tripStartTime) / 1000);
+            const m = String(Math.floor(diffSecs / 60)).padStart(2, '0');
+            const s = String(diffSecs % 60).padStart(2, '0');
+            document.getElementById('tripTimeDisplay').innerText = `${m}:${s}`;
+        }
+
+        // HUD TOGGLE
+        function toggleHUD() {
+            document.body.classList.toggle('hud-mode');
+            const hudBtn = document.getElementById('hudBtn');
+            hudBtn.classList.toggle('btn-active');
+        }
+
+        // CANVAS GAUGE DRAWING
+        function drawGauge(speed) {
+            const width = canvas.width;
+            const height = canvas.height;
+            const cx = width / 2;
+            const cy = height / 2;
+            const radius = 120;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const startAngle = 0.75 * Math.PI;
+            const endAngle = 2.25 * Math.PI;
+            const maxVal = currentUnit === 'mph' ? 140 : (currentUnit === 'knots' ? 120 : 220);
+
+            // Background Outer Track
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, startAngle, endAngle);
+            ctx.lineWidth = 14;
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Active Progress Gradient Arc
+            const currentAngle = startAngle + Math.min(speed / maxVal, 1) * (endAngle - startAngle);
+            const grad = ctx.createLinearGradient(0, 0, width, height);
+            grad.addColorStop(0, '#00f2fe');
+            grad.addColorStop(0.5, '#4facfe');
+            grad.addColorStop(1, '#ef4444');
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, startAngle, currentAngle);
+            ctx.lineWidth = 14;
+            ctx.strokeStyle = grad;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Ticks
+            for (let i = 0; i <= 10; i++) {
+                const angle = startAngle + (i / 10) * (endAngle - startAngle);
+                const x1 = cx + Math.cos(angle) * (radius - 20);
+                const y1 = cy + Math.sin(angle) * (radius - 20);
+                const x2 = cx + Math.cos(angle) * (radius - 28);
+                const y2 = cy + Math.sin(angle) * (radius - 28);
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#475569';
+                ctx.stroke();
+            }
+
+            // Needle
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(currentAngle);
+
+            ctx.beginPath();
+            ctx.moveTo(0, -5);
+            ctx.lineTo(radius - 35, 0);
+            ctx.lineTo(0, 5);
+            ctx.fillStyle = '#ef4444';
+            ctx.fill();
+
+            // Needle Center Cap
+            ctx.beginPath();
+            ctx.arc(0, 0, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // HAVERSINE DISTANCE FORMULA (Meters)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Earth radius in meters
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c;
+        }
+
+        // KEEP SCREEN AWAKE (WAKE LOCK)
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {}
+        }
+    </script>
+</body>
+</html>
